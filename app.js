@@ -17,13 +17,12 @@ import {
 
 // Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBmjWit0GIVgswsUWK3mBjLPOUk8Y9sS30",
-  authDomain: "nammadha-de413.firebaseapp.com",
-  projectId: "nammadha-de413",
-  storageBucket: "nammadha-de413.firebasestorage.app",
-  messagingSenderId: "480779718897",
-  appId: "1:480779718897:web:28d81a6063939207911950",
-  measurementId: "G-53LVV9BF18"
+  apiKey: "AIzaSyBhQu2EY_w7IgrCeLus8eVynjOIK3-0ESc",
+  authDomain: "leetcode-final.firebaseapp.com",
+  projectId: "leetcode-final",
+  storageBucket: "leetcode-final.firebasestorage.app",
+  messagingSenderId: "25751744728",
+  appId: "1:25751744728:web:2e6e7b4864de49b05027ad"
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -85,7 +84,7 @@ const quoteAuthorElem = document.getElementById("quote-author");
 const refreshQuoteButton = document.getElementById("refresh-quote");
 
 // State Variables
-let currentProfile = "Mano";
+let currentProfile = "deva";
 let problemsData = {};
 let allSolvedDates = [];
 let totalProblemsCount = 0;
@@ -103,23 +102,25 @@ let currentEndDate = null;
 // ----------------- Dark Mode Toggle -----------------
 darkModeSwitch.addEventListener("change", () => {
   document.body.classList.toggle("dark-mode", darkModeSwitch.checked);
+  localStorage.setItem("darkMode", darkModeSwitch.checked);
 });
+
+// Check for saved dark mode preference
+const savedDarkMode = localStorage.getItem("darkMode");
+if (savedDarkMode === "true") {
+  darkModeSwitch.checked = true;
+  document.body.classList.add("dark-mode");
+}
 
 // ----------------- Profile-based Endpoints -----------------
 function getProfileEndpoint(profile) {
   switch (profile) {
-    case "Ananth":
-      return "https://alfa-leetcode-api.onrender.com/20epci004/acSubmission";
     case "deva":
-      return "https://alfa-leetcode-api.onrender.com/qR2Ni1CLa4/acSubmission";
-    case "Mano":
-      return "https://alfa-leetcode-api.onrender.com/manoharannagarajan/acSubmission";
-    case "revanth":
-      return "https://alfa-leetcode-api.onrender.com/Revanth2002/acSubmission";
-    case "murali":
-      return "https://alfa-leetcode-api.onrender.com/Muralidaran/acSubmission";
-    case "vishan":
-      return "https://alfa-leetcode-api.onrender.com/vishan/acSubmission";
+      return "https://alfa-leetcode-api.onrender.com/devasahithiyan/acSubmission";
+    case "deebak":
+      return "https://alfa-leetcode-api.onrender.com/deebakkarthi/acSubmission";
+    case "sandeep":
+      return "https://alfa-leetcode-api.onrender.com/sandeepkhannavp/acSubmission";
     default:
       return "";
   }
@@ -129,11 +130,17 @@ function getProfileEndpoint(profile) {
 function showLoading(show) {
   if (!loadingSpinner) return;
   loadingSpinner.style.display = show ? "flex" : "none";
+  if (show) {
+    progressAnnouncer.textContent = "Loading data, please wait...";
+  } else {
+    progressAnnouncer.textContent = "Data loaded successfully";
+  }
 }
 
 function updateProgressBar(element, percentage) {
   if (!element) return;
   element.style.width = percentage + "%";
+  element.setAttribute("aria-valuenow", percentage.toFixed(1));
 }
 
 function calculateAverageSolvedPerDay(totalSolved) {
@@ -199,19 +206,80 @@ function renderAverageSolvedChartDetailed(avg) {
 }
 
 function calculateStreaks(dates) {
+  if (!dates.length) return { currentStreak: 0, highestStreak: 0 };
+  
+  // Sort dates in ascending order
   const sorted = [...dates].sort((a, b) => a - b);
-  if (!sorted.length) return { currentStreak: 0, highestStreak: 0 };
-  let currentStreak = 1;
-  let highestStreak = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    const diff = (sorted[i] - sorted[i - 1]) / (1000 * 60 * 60 * 24);
-    if (diff === 1) {
-      currentStreak++;
-      highestStreak = Math.max(highestStreak, currentStreak);
-    } else if (diff > 1) {
-      currentStreak = 1;
+  
+  // Group dates by day (eliminate duplicates on same day)
+  const days = {};
+  sorted.forEach(date => {
+    const dateStr = date.toISOString().split('T')[0];
+    days[dateStr] = true;
+  });
+  
+  const daysList = Object.keys(days).map(day => new Date(day));
+  daysList.sort((a, b) => a - b);
+  
+  // Calculate current streak
+  let currentStreak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  // Check if the most recent day is today or yesterday
+  const mostRecent = daysList[daysList.length - 1];
+  mostRecent.setHours(0, 0, 0, 0);
+  
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const mostRecentStr = mostRecent.toISOString().split('T')[0];
+  
+  // If most recent is not today or yesterday, current streak is 0
+  if (mostRecentStr !== todayStr && mostRecentStr !== yesterdayStr) {
+    currentStreak = 0;
+  } else {
+    // Count backwards from most recent
+    currentStreak = 1;
+    for (let i = daysList.length - 2; i >= 0; i--) {
+      const current = daysList[i];
+      const next = daysList[i + 1];
+      
+      // Calculate the difference in days
+      const diffTime = Math.abs(next - current);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        currentStreak++;
+      } else {
+        break;
+      }
     }
   }
+  
+  // Calculate highest streak
+  let highestStreak = 0;
+  let tempStreak = 1;
+  
+  for (let i = 1; i < daysList.length; i++) {
+    const current = daysList[i];
+    const prev = daysList[i - 1];
+    
+    const diffTime = Math.abs(current - prev);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      tempStreak++;
+      highestStreak = Math.max(highestStreak, tempStreak);
+    } else {
+      tempStreak = 1;
+    }
+  }
+  
+  highestStreak = Math.max(highestStreak, tempStreak);
+  
   return { currentStreak, highestStreak };
 }
 
@@ -239,7 +307,6 @@ function subscribeToOverviewUpdates() {
     updateProgressBar(overallProgressBar, pct);
     overallProgressNumbers.textContent = `${totalSolved}/${totalProblemsCount}`;
     progressPercentage.textContent = `${pct.toFixed(1)}%`;
-    overallProgressBar.setAttribute("aria-valuenow", pct.toFixed(1));
     const { currentStreak, highestStreak } = calculateStreaks(allSolvedDates);
     currentStreakElem.textContent = currentStreak;
     highestStreakElem.textContent = highestStreak;
@@ -250,12 +317,20 @@ function subscribeToOverviewUpdates() {
 // ----------------- Event Listeners -----------------
 profileSelector.addEventListener("change", async () => {
   currentProfile = profileSelector.value;
+  localStorage.setItem("currentProfile", currentProfile);
   await loadProblems();
   subscribeToOverviewUpdates();
   await updateDetailedAnalysis();
   renderCalendar();
   updateRanking();
 });
+
+// Load saved profile preference
+const savedProfile = localStorage.getItem("currentProfile");
+if (savedProfile) {
+  currentProfile = savedProfile;
+  profileSelector.value = currentProfile;
+}
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -702,50 +777,74 @@ async function renderDifficultyDistributionChart() {
   }
 }
 
+/* ---------- CONTINUATION ---------- */
+
+/* ----- Topic‑wise Detailed Analysis ----- */
 function renderTopicWiseDetailedAnalysis() {
   if (!problemsData.topics || !topicWiseGrid) return;
   topicWiseGrid.innerHTML = "";
+
   problemsData.topics.forEach((topic) => {
     const total = Array.isArray(topic.problems) ? topic.problems.length : 0;
     const solved = topicSolvedCounts[topic.name] || 0;
     const mainPct = total === 0 ? 0 : ((solved / total) * 100).toFixed(1);
-    const diffObj = topicDifficultyCounts[topic.name] || { Easy: 0, Medium: 0, Hard: 0 };
-    const eCount = diffObj.Easy;
-    const mCount = diffObj.Medium;
-    const hCount = diffObj.Hard;
+
+    const diffObj = topicDifficultyCounts[topic.name] || {
+      Easy: 0,
+      Medium: 0,
+      Hard: 0,
+    };
+    const { Easy: eCount, Medium: mCount, Hard: hCount } = diffObj;
+
+    // Card container
     const card = document.createElement("div");
     card.classList.add("accordion-card");
+
+    // Header
     const accordionHeader = document.createElement("div");
     accordionHeader.classList.add("accordion-header");
     const heading = document.createElement("h3");
     heading.textContent = topic.name;
     accordionHeader.appendChild(heading);
+
     const progressInfo = document.createElement("div");
     progressInfo.classList.add("topic-progress-info");
     progressInfo.innerHTML = `<span>${mainPct}% Completed</span>`;
     accordionHeader.appendChild(progressInfo);
     card.appendChild(accordionHeader);
+
+    // Body
     const accordionBody = document.createElement("div");
     accordionBody.classList.add("accordion-body");
+
+    // Extra stats placeholders
     const extraStats = document.createElement("div");
     extraStats.classList.add("topic-extra-stats");
+
     const longestStreak = document.createElement("div");
     longestStreak.classList.add("stat-box");
-    longestStreak.innerHTML = `<strong>Longest Streak:</strong> 0 Days`;
+    longestStreak.innerHTML = "<strong>Longest Streak:</strong> 0 Days";
+
     const timeSpent = document.createElement("div");
     timeSpent.classList.add("stat-box");
-    timeSpent.innerHTML = `<strong>Time Spent:</strong> 0 Hours`;
+    timeSpent.innerHTML = "<strong>Time Spent:</strong> 0 Hours";
+
     extraStats.appendChild(longestStreak);
     extraStats.appendChild(timeSpent);
     accordionBody.appendChild(extraStats);
+
+    // Pie‑chart
     const chartDiv = document.createElement("div");
     chartDiv.classList.add("topic-chart");
     const canvas = document.createElement("canvas");
     canvas.id = `topic-chart-${topic.name.replace(/\s+/g, "-")}`;
     chartDiv.appendChild(canvas);
     accordionBody.appendChild(chartDiv);
+
     card.appendChild(accordionBody);
     topicWiseGrid.appendChild(card);
+
+    // Chart.js
     new Chart(canvas.getContext("2d"), {
       type: "pie",
       data: {
@@ -760,17 +859,18 @@ function renderTopicWiseDetailedAnalysis() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "bottom" },
-        },
+        plugins: { legend: { position: "bottom" } },
       },
     });
+
+    // Toggle
     accordionHeader.addEventListener("click", () => {
       accordionBody.classList.toggle("open");
     });
   });
 }
 
+/* ----- Synchronisation with LeetCode API ----- */
 async function syncSubmittedProblems() {
   if (loadingSpinner?.style.display === "flex") {
     alert("Synchronization is already in progress. Please wait.");
@@ -783,29 +883,34 @@ async function syncSubmittedProblems() {
       alert("No API endpoint found for this profile!");
       return;
     }
+
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`API request failed, status ${resp.status}`);
     const data = await resp.json();
+
     if (!data || !Array.isArray(data.submission)) {
-      alert('API data unexpected or no "submission" array found.');
+      alert('Unexpected API data – "submission" array missing.');
       return;
     }
+
     const submittedTitles = data.submission.map((i) => i.title).filter(Boolean);
     if (!submittedTitles.length) {
-      alert("No matching submissions found or empty data from API.");
+      alert("No submissions found for this user.");
       return;
     }
+
     const matched = matchProblems(submittedTitles, problemsData);
     if (!matched.length) {
-      alert("No matching problems found between local data and external API.");
+      alert("No matching problems between local list and LeetCode submissions.");
       return;
     }
+
     await updateFirebaseForMatchedProblems(matched);
     await loadProblems();
     await updateDetailedAnalysis();
     renderCalendar();
     updateRanking();
-    alert("Synchronization complete! Marked new problems as completed.");
+    alert("Synchronization complete!");
   } catch (e) {
     console.error("Sync error:", e);
     alert(`Sync error: ${e.message}`);
@@ -818,6 +923,7 @@ function matchProblems(submittedTitles, localData) {
   const normalized = submittedTitles.map((t) =>
     t.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()
   );
+
   return localData.topics.flatMap((topic) =>
     topic.problems
       .filter((prob) => {
@@ -865,14 +971,16 @@ async function updateFirebaseForMatchedProblems(matchedProblems) {
   await Promise.all(tasks);
 }
 
-function debounce(func, timeout = 500) {
+/* ----- Helpers ----- */
+function debounce(fn, timeout = 500) {
   let timer;
   return (...args) => {
     clearTimeout(timer);
-    timer = setTimeout(() => func.apply(this, args), timeout);
+    timer = setTimeout(() => fn.apply(this, args), timeout);
   };
 }
 
+/* ---------- Motivational Quotes ---------- */
 async function fetchQuotes() {
   try {
     const response = await fetch("quotes.json");
@@ -881,24 +989,19 @@ async function fetchQuotes() {
     quotes = data.quotes;
   } catch (error) {
     console.error("Error fetching quotes:", error);
-    quoteTextElem.textContent = "Keep pushing forward!";
-    quoteAuthorElem.textContent = "Unknown";
+    quotes = [{ text: "Keep pushing forward!", author: "Unknown" }];
   }
 }
 
 function displayRandomQuote(initial = false) {
   if (!quotes.length) return;
-  let quote;
-  if (initial && quotes.length > 0) {
-    quote = quotes[0];
-  } else {
-    const randomIndex = Math.floor(Math.random() * quotes.length);
-    quote = quotes[randomIndex];
-  }
+  const quote = initial ? quotes[0] : quotes[Math.floor(Math.random() * quotes.length)];
+
   quoteTextElem.style.animation = "fadeOutDown 0.5s forwards";
   quoteAuthorElem.style.animation = "fadeOutDown 0.5s forwards";
+
   setTimeout(() => {
-    quoteTextElem.textContent = `${quote.text}`;
+    quoteTextElem.textContent = quote.text;
     quoteAuthorElem.textContent = `- ${quote.author}`;
     quoteTextElem.style.animation = "fadeInUp 0.5s forwards";
     quoteAuthorElem.style.animation = "fadeInUp 0.5s forwards";
@@ -910,6 +1013,7 @@ async function initializeQuotes() {
   displayRandomQuote(true);
 }
 
+/* ---------- Calendar & Modal ---------- */
 async function getAllCompletedProblems() {
   const result = [];
   try {
@@ -938,16 +1042,19 @@ function openDayModal(isoStr, dayData) {
   modalDateElem.textContent = isoStr;
   problemsCountElem.textContent = `Total Problems Solved: ${dayData.count}`;
   problemsBody.innerHTML = "";
+
   dayData.problems.forEach((prob) => {
     const tr = document.createElement("tr");
     const tdTitle = document.createElement("td");
     tdTitle.textContent = prob.title;
+
     const tdDiff = document.createElement("td");
     tdDiff.textContent = prob.difficulty;
     const diffLower = prob.difficulty.toLowerCase();
     if (diffLower === "easy") tdDiff.classList.add("difficulty-easy");
     if (diffLower === "medium") tdDiff.classList.add("difficulty-medium");
     if (diffLower === "hard") tdDiff.classList.add("difficulty-hard");
+
     tr.appendChild(tdTitle);
     tr.appendChild(tdDiff);
     problemsBody.appendChild(tr);
@@ -967,12 +1074,21 @@ function getMonthlySolvedCount(solveMap, year, month) {
 
 function renderCalendar(year, month) {
   if (!calendarContainer) return;
+
   const now = new Date();
   const currYear = year ?? now.getFullYear();
   const currMonth = month ?? now.getMonth();
   calendarContainer.innerHTML = "";
+
+  /* Header */
   const headerDiv = document.createElement("div");
   headerDiv.classList.add("calendar-header");
+
+  const monthNames = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December"
+  ];
+
   const prevBtn = document.createElement("button");
   prevBtn.textContent = "Prev";
   prevBtn.addEventListener("click", () => {
@@ -984,6 +1100,7 @@ function renderCalendar(year, month) {
     }
     renderCalendar(newYear, newMonth);
   });
+
   const nextBtn = document.createElement("button");
   nextBtn.textContent = "Next";
   nextBtn.addEventListener("click", () => {
@@ -995,24 +1112,24 @@ function renderCalendar(year, month) {
     }
     renderCalendar(newYear, newMonth);
   });
+
   const monthInfo = document.createElement("div");
   monthInfo.classList.add("month-info");
-  const monthNames = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ];
   const monthYearTitle = document.createElement("h3");
-  monthYearTitle.style.margin = "0";
   monthYearTitle.textContent = `${monthNames[currMonth]} ${currYear}`;
   const monthBadge = document.createElement("span");
   monthBadge.classList.add("month-solved-badge");
-  monthBadge.textContent = `Month Solved: 0`;
+  monthBadge.textContent = "Solved this Month: 0";
   monthInfo.appendChild(monthYearTitle);
   monthInfo.appendChild(monthBadge);
+
   headerDiv.appendChild(prevBtn);
   headerDiv.appendChild(monthInfo);
   headerDiv.appendChild(nextBtn);
+
   calendarContainer.appendChild(headerDiv);
+
+  /* Build grid */
   getAllCompletedProblems()
     .then((allCompleted) => {
       const solveMap = {};
@@ -1027,40 +1144,57 @@ function renderCalendar(year, month) {
           difficulty: item.difficulty,
         });
       });
-      const monthSolved = getMonthlySolvedCount(solveMap, currYear, currMonth);
-      monthBadge.textContent = `Solved this Month: ${monthSolved}`;
+
+      monthBadge.textContent = `Solved this Month: ${getMonthlySolvedCount(
+        solveMap,
+        currYear,
+        currMonth
+      )}`;
+
       const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       const grid = document.createElement("div");
       grid.classList.add("calendar-grid");
+
       dayNames.forEach((d) => {
         const dh = document.createElement("div");
         dh.classList.add("day-header");
         dh.textContent = d;
         grid.appendChild(dh);
       });
+
       const firstDayOfMonth = new Date(currYear, currMonth, 1);
       const lastDayOfMonth = new Date(currYear, currMonth + 1, 0);
       const startDay = firstDayOfMonth.getDay();
       const totalDays = lastDayOfMonth.getDate();
+
+      /* leading blanks */
       for (let i = 0; i < startDay; i++) {
         const blank = document.createElement("div");
         blank.classList.add("calendar-day", "inactive");
         grid.appendChild(blank);
       }
+
+      /* actual days */
       for (let day = 1; day <= totalDays; day++) {
         const dayDiv = document.createElement("div");
         dayDiv.classList.add("calendar-day");
         dayDiv.textContent = day;
+
         const dateObj = new Date(currYear, currMonth, day);
         const isoStr = dateObj.toISOString().split("T")[0];
+
         if (solveMap[isoStr]) {
           const sc = document.createElement("div");
           sc.classList.add("solves-count");
           sc.textContent = solveMap[isoStr].count;
           dayDiv.appendChild(sc);
-          dayDiv.addEventListener("click", () => openDayModal(isoStr, solveMap[isoStr]));
+          dayDiv.addEventListener("click", () =>
+            openDayModal(isoStr, solveMap[isoStr])
+          );
         } else {
-          dayDiv.addEventListener("click", () => openDayModal(isoStr, { count: 0, problems: [] }));
+          dayDiv.addEventListener("click", () =>
+            openDayModal(isoStr, { count: 0, problems: [] })
+          );
         }
         grid.appendChild(dayDiv);
       }
@@ -1069,17 +1203,15 @@ function renderCalendar(year, month) {
     .catch((err) => console.error("Error building solve map:", err));
 }
 
-function openDayModalHandler() {
-  dayModal.style.display = "block";
-}
-
+/* ---------- Ranking ---------- */
 async function updateRanking() {
-  const profiles = ["Mano", "deva", "Ananth", "revanth", "murali", "vishan"];
+  const profiles = ["deva", "deebak", "sandeep"]; // only three profiles
   const rankingData = await Promise.all(
     profiles.map(async (profile) => {
       const userRef = collection(db, "users", profile, "problems");
       const q = query(userRef, where("completed", "==", true));
       const snap = await getDocs(q);
+
       let score = 0;
       snap.forEach((docSnap) => {
         const data = docSnap.data();
@@ -1093,6 +1225,7 @@ async function updateRanking() {
       return { profile, score };
     })
   );
+
   rankingData.sort((a, b) => b.score - a.score);
   renderRanking(rankingData);
 }
@@ -1101,14 +1234,19 @@ function renderRanking(rankingData) {
   const rankingTableBody = document.querySelector("#ranking-table tbody");
   if (!rankingTableBody) return;
   rankingTableBody.innerHTML = "";
+
   rankingData.forEach((entry, index) => {
     const tr = document.createElement("tr");
+
     const rankCell = document.createElement("td");
     rankCell.textContent = index + 1;
+
     const profileCell = document.createElement("td");
     profileCell.textContent = entry.profile;
+
     const scoreCell = document.createElement("td");
     scoreCell.textContent = entry.score;
+
     tr.appendChild(rankCell);
     tr.appendChild(profileCell);
     tr.appendChild(scoreCell);
@@ -1116,4 +1254,4 @@ function renderRanking(rankingData) {
   });
 }
 
-// ----------------- End of Code -----------------
+/* ---------- END OF FILE ---------- */
